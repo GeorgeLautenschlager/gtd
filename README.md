@@ -6,6 +6,8 @@ This repository implements a minimal **FastAPI** application that serves as a "c
 
 ## Quick start
 
+### Unix/macOS
+
 1. **Install dependencies** (preferably in a virtualenv):
    ```bash
    pip install -r requirements.txt
@@ -15,6 +17,23 @@ This repository implements a minimal **FastAPI** application that serves as a "c
    uvicorn main:app --reload
    ```
 3. Open http://localhost:8000/ in your browser to access the inbox UI.
+
+### Windows (PowerShell)
+
+1. **Create and activate a virtual environment** (optional but recommended):
+   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
+2. **Install dependencies**:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+3. **Run the application**:
+   ```powershell
+   uvicorn main:app --reload
+   ```
+4. Point your browser to http://localhost:8000/ to use the inbox UI.
 
 ## Project layout
 
