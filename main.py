@@ -112,12 +112,12 @@ def complete_next_action(action_id: int, db: Session = Depends(get_db)):
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     # simple static HTML front-end
-    with open("static/index.html", "r") as f:
+    with open("static/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
 
 @app.get("/clarify", response_class=HTMLResponse)
 def read_clarify():
     # clarification UI
-    with open("static/clarify.html", "r") as f:
+    with open("static/clarify.html", "r", encoding="utf-8") as f:
         return f.read()
