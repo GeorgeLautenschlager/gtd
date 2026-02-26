@@ -39,16 +39,22 @@ This repository implements a minimal **FastAPI** application that serves as a "c
 
 ```
 ./
-├── main.py          # FastAPI application entrypoint
-├── database.py      # SQLAlchemy engine/session setup
-├── models.py        # ORM models
-├── schemas.py       # Pydantic request/response models
-├── static/          # frontend assets (index.html)
-├── requirements.txt # Python dependencies
+├── main.py              # FastAPI application entrypoint
+├── database.py          # SQLAlchemy engine/session setup
+├── models.py            # ORM models (InboxItem, Project, NextAction)
+├── schemas.py           # Pydantic request/response models
+├── crud.py              # Database operations for projects and actions
+├── clarify.py           # Clarification logic and router
+├── static/
+│   ├── index.html       # Original inbox UI (Chunk 1)
+│   └── clarify.html     # Clarification UI (Chunk 2)
+├── requirements.txt     # Python dependencies
 └── README.md
 ```
 
 ## API endpoints
+
+### Inbox (Chunk 1)
 
 | Method | Path                   | Description                        |
 |--------|------------------------|------------------------------------|
@@ -58,4 +64,56 @@ This repository implements a minimal **FastAPI** application that serves as a "c
 | GET    | `/inbox/all`           | List all items (for debugging)     |
 | GET    | `/`                    | Serve the static HTML UI           |
 
+### Clarification (Chunk 2)
+
+| Method | Path                   | Description                        |
+|--------|------------------------|------------------------------------|
+| POST   | `/clarify`             | Process inbox item into project/action/other |
+| GET    | `/clarify`             | Serve the clarification UI         |
+| GET    | `/clarify/items`       | List unprocessed items for clarification |
+
+### Projects (Chunk 2)
+
+| Method | Path                   | Description                        |
+|--------|------------------------|------------------------------------|
+| GET    | `/projects`            | List active projects (filter by status=active/someday/completed) |
+| GET    | `/projects/{id}`       | Get single project with its next actions |
+| POST   | `/projects/{id}/complete` | Mark project as completed        |
+
+### Next Actions (Chunk 2)
+
+| Method | Path                   | Description                        |
+|--------|------------------------|------------------------------------|
+| GET    | `/next-actions`        | List active next actions (filter by ?context=phone) |
+| POST   | `/next-actions/{id}/complete` | Mark next action as completed  |
+
 The SQLite database file (`gtd.db`) is created in the workspace root on first run. Data persists between restarts.
+
+## Features
+
+### Chunk 1: Inbox Capture
+- Capture unstructured items into inbox
+- Mark items as processed
+- Simple, focused capture interface
+
+### Chunk 2: Clarification & Processing (NEW)
+Process inbox items into one of five categories:
+
+1. **Next Actions** - Single, specific physical steps
+   - Context (phone, computer, work, home, self_care, home_exterior)
+   - Energy required (high, medium, low)
+   - Time estimate (optional)
+
+2. **Projects** - Multi-step outcomes requiring multiple next actions
+   - Project name and outcome description
+   - Linked next actions
+   - Active/someday/completed status
+
+3. **Someday/Maybe** - Interesting but not now
+   - Creates a project with someday status
+
+4. **Reference** - Non-actionable but useful to keep
+   - Marked as processed, retained for reference
+
+5. **Trash** - Not actionable and not useful
+   - Marked as processed, discarded

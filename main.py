@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
+import crud
+from clarify import router as clarify_router
 from database import SessionLocal, engine
 
 # create tables if they don't exist
@@ -16,6 +18,9 @@ app = FastAPI()
 
 # serve frontend
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# include routers
+app.include_router(clarify_router)
 
 
 def get_db():
@@ -66,8 +71,53 @@ def list_all(db: Session = Depends(get_db)):
     return items
 
 
+# Projects endpoints
+@app.get("/projects", response_model=list[schemas.ProjectResponse])
+def list_projects(status: str = "active", db: Session = Depends(get_db)):
+    projects = crud.list_projects(db, status=status)
+    return projects
+
+
+@app.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = crud.get_project(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@app.post("/projects/{project_id}/complete", response_model=schemas.ProjectResponse)
+def complete_project(project_id: int, db: Session = Depends(get_db)):
+    project = crud.complete_project(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+# Next Actions endpoints
+@app.get("/next-actions", response_model=list[schemas.NextActionResponse])
+def list_next_actions(context: str | None = None, db: Session = Depends(get_db)):
+    actions = crud.list_next_actions(db, context=context)
+    return actions
+
+
+@app.post("/next-actions/{action_id}/complete", response_model=schemas.NextActionResponse)
+def complete_next_action(action_id: int, db: Session = Depends(get_db)):
+    action = crud.complete_next_action(db, action_id)
+    if not action:
+        raise HTTPException(status_code=404, detail="Next action not found")
+    return action
+
+
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     # simple static HTML front-end
     with open("static/index.html", "r") as f:
+        return f.read()
+
+
+@app.get("/clarify", response_class=HTMLResponse)
+def read_clarify():
+    # clarification UI
+    with open("static/clarify.html", "r") as f:
         return f.read()

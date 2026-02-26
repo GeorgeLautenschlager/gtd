@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTD - Clarify Inbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .nav-buttons a, .nav-buttons button {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .nav-buttons a:hover, .nav-buttons button:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .inbox-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .inbox-item p {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .decision-flow {
+            display: none;
+        }
+
+        .decision-flow.active {
+            display: block;
+        }
+
+        .question {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f0f4ff;
+            border-radius: 5px;
+        }
+
+        .question h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-buttons {
+                flex-direction: column;
+            }
+
+            header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 GTD Clarify</h1>
+            <p>Process your inbox items into projects, next actions, or other categories</p>
+            <div class="nav-buttons">
+                <a href="/">📥 Inbox</a>
+                <a href="/clarify">🔄 Clarify</a>
+                <a href="#" onclick="loadProjects()">📋 Projects</a>
+                <a href="#" onclick="loadActions()">✅ Next Actions</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="success-message" id="successMsg"></div>
+            <div class="error-message" id="errorMsg"></div>
+
+            <div id="itemsContainer"></div>
+            <div id="emptyState" class="empty-state hidden">
+                <h2>✨ All caught up!</h2>
+                <p>No unprocessed items in your inbox.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONTEXTS = ['phone', 'computer', 'work', 'home', 'self_care', 'home_exterior'];
+        const ENERGY_LEVELS = ['low', 'medium', 'high'];
+
+        async function loadUnprocessedItems() {
+            try {
+                const resp = await fetch('/clarify/items');
+                const items = await resp.json();
+
+                if (items.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                    document.getElementById('itemsContainer').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('emptyState').classList.add('hidden');
+                document.getElementById('itemsContainer').innerHTML = items.map(item => `
+                    <div class="inbox-item" id="item-${item.id}">
+                        <p><strong>Inbox Item:</strong> ${escapeHtml(item.content)}</p>
+                        <div class="decision-flow active" id="flow-${item.id}">
+                            <div class="question">
+                                <h3>Is this actionable?</h3>
+                                <div class="button-group">
+                                    <button class="btn btn-primary" onclick="showActionableFlow(${item.id})">Yes</button>
+                                    <button class="btn btn-secondary" onclick="showNonActionableFlow(${item.id})">No</button>
+                                </div>
+                            </div>
+
+                            <!-- Actionable flow -->
+                            <div id="actionable-${item.id}" class="hidden">
+                                <div class="question">
+                                    <h3>Is this a single step or multi-step?</h3>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="showNextActionForm(${item.id})">Single Step</button>
+                                        <button class="btn btn-primary" onclick="showProjectForm(${item.id})">Multi-Step (Project)</button>
+                                    </div>
+                                </div>
+
+                                <!-- Next Action Form -->
+                                <form id="nextActionForm-${item.id}" class="hidden" onsubmit="submitNextAction(event, ${item.id})">
+                                    <h3>Create Next Action</h3>
+                                    <div class="form-group">
+                                        <label>Action Description</label>
+                                        <textarea name="description" required>${escapeHtml(item.content)}</textarea>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Context</label>
+                                            <select name="context" required>
+                                                <option value="">Select context...</option>
+                                                ${CONTEXTS.map(c => `<option value="${c}">${c.replace(/_/g, ' ')}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Energy Required</label>
+                                            <select name="energy_required" required>
+                                                <option value="">Select energy...</option>
+                                                ${ENERGY_LEVELS.map(e => `<option value="${e}">${e}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Time Estimate (minutes, optional)</label>
+                                        <input type="number" name="time_estimate" min="0">
+                                    </div>
+                                    <div class="button-group">
+                                        <button type="submit" class="btn btn-primary">Create Next Action</button>
+                                        <button type="button" class="btn btn-secondary" onclick="resetForm(${item.id})">Back</button>
+                                    </div>
+                                </form>
+
+                                <!-- Project Form -->
+                                <form id="projectForm-${item.id}" class="hidden" onsubmit="submitProject(event, ${item.id})">
+                                    <h3>Create Project</h3>
+                                    <div class="form-group">
+                                        <label>Project Name</label>
+                                        <input type="text" name="project_name" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>What does "done" look like? (Successful Outcome)</label>
+                                        <textarea name="outcome_description" required></textarea>
+                                    </div>
+                                    <h4 style="margin-top: 30px; margin-bottom: 20px;">First Next Action</h4>
+                                    <div class="form-group">
+                                        <label>Action Description</label>
+                                        <textarea name="first_action_description" required>${escapeHtml(item.content)}</textarea>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Context</label>
+                                            <select name="first_action_context" required>
+                                                <option value="">Select context...</option>
+                                                ${CONTEXTS.map(c => `<option value="${c}">${c.replace(/_/g, ' ')}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Energy Required</label>
+                                            <select name="first_action_energy" required>
+                                                <option value="">Select energy...</option>
+                                                ${ENERGY_LEVELS.map(e => `<option value="${e}">${e}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Time Estimate (minutes, optional)</label>
+                                        <input type="number" name="first_action_time" min="0">
+                                    </div>
+                                    <div class="button-group">
+                                        <button type="submit" class="btn btn-primary">Create Project & First Action</button>
+                                        <button type="button" class="btn btn-secondary" onclick="resetForm(${item.id})">Back</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Non-actionable flow -->
+                            <div id="nonActionable-${item.id}" class="hidden">
+                                <div class="question">
+                                    <h3>What type?</h3>
+                                    <div class="button-group">
+                                        <button class="btn btn-secondary" onclick="submitOther(${item.id}, 'trash')">🗑️ Trash</button>
+                                        <button class="btn btn-secondary" onclick="submitOther(${item.id}, 'reference')">📚 Reference</button>
+                                        <button class="btn btn-secondary" onclick="submitOther(${item.id}, 'someday')">⏰ Someday/Maybe</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                showError('Failed to load items: ' + error.message);
+            }
+        }
+
+        function showActionableFlow(itemId) {
+            document.getElementById(`actionable-${itemId}`).classList.remove('hidden');
+            document.querySelectorAll(`#flow-${itemId} .question`)[0].classList.add('hidden');
+        }
+
+        function showNonActionableFlow(itemId) {
+            document.getElementById(`nonActionable-${itemId}`).classList.remove('hidden');
+            document.querySelectorAll(`#flow-${itemId} .question`)[0].classList.add('hidden');
+        }
+
+        function showNextActionForm(itemId) {
+            document.getElementById(`nextActionForm-${itemId}`).classList.remove('hidden');
+            document.getElementById(`projectForm-${itemId}`).classList.add('hidden');
+        }
+
+        function showProjectForm(itemId) {
+            document.getElementById(`projectForm-${itemId}`).classList.remove('hidden');
+            document.getElementById(`nextActionForm-${itemId}`).classList.add('hidden');
+        }
+
+        function resetForm(itemId) {
+            document.getElementById(`actionable-${itemId}`).classList.add('hidden');
+            document.getElementById(`nonActionable-${itemId}`).classList.add('hidden');
+            document.getElementById(`nextActionForm-${itemId}`).classList.add('hidden');
+            document.getElementById(`projectForm-${itemId}`).classList.add('hidden');
+            document.querySelectorAll(`#flow-${itemId} .question`)[0].classList.remove('hidden');
+        }
+
+        async function submitNextAction(event, itemId) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            const payload = {
+                inbox_item_id: itemId,
+                action: "next_action",
+                next_action_data: {
+                    description: formData.get('description'),
+                    context: formData.get('context'),
+                    energy_required: formData.get('energy_required'),
+                    time_estimate: formData.get('time_estimate') ? parseInt(formData.get('time_estimate')) : null
+                }
+            };
+
+            try {
+                const resp = await fetch('/clarify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    const error = await resp.json();
+                    throw new Error(error.detail || 'Failed to create action');
+                }
+
+                showSuccess('Next action created! Moving to next item...');
+                setTimeout(() => {
+                    document.getElementById(`item-${itemId}`).remove();
+                    loadUnprocessedItems();
+                }, 1000);
+            } catch (error) {
+                showError('Error: ' + error.message);
+            }
+        }
+
+        async function submitProject(event, itemId) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            const payload = {
+                inbox_item_id: itemId,
+                action: "project",
+                project_data: {
+                    name: formData.get('project_name'),
+                    outcome_description: formData.get('outcome_description'),
+                    status: "active"
+                },
+                next_action_data: {
+                    description: formData.get('first_action_description'),
+                    context: formData.get('first_action_context'),
+                    energy_required: formData.get('first_action_energy'),
+                    time_estimate: formData.get('first_action_time') ? parseInt(formData.get('first_action_time')) : null
+                }
+            };
+
+            try {
+                const resp = await fetch('/clarify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    const error = await resp.json();
+                    throw new Error(error.detail || 'Failed to create project');
+                }
+
+                showSuccess('Project created! Moving to next item...');
+                setTimeout(() => {
+                    document.getElementById(`item-${itemId}`).remove();
+                    loadUnprocessedItems();
+                }, 1000);
+            } catch (error) {
+                showError('Error: ' + error.message);
+            }
+        }
+
+        async function submitOther(itemId, action) {
+            const payload = {
+                inbox_item_id: itemId,
+                action: action === 'someday' ? 'someday' : action
+            };
+
+            try {
+                const resp = await fetch('/clarify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    const error = await resp.json();
+                    throw new Error(error.detail || `Failed to mark as ${action}`);
+                }
+
+                showSuccess(`Item marked as ${action}! Moving to next item...`);
+                setTimeout(() => {
+                    document.getElementById(`item-${itemId}`).remove();
+                    loadUnprocessedItems();
+                }, 1000);
+            } catch (error) {
+                showError('Error: ' + error.message);
+            }
+        }
+
+        function showSuccess(msg) {
+            const el = document.getElementById('successMsg');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function loadProjects() {
+            try {
+                const resp = await fetch('/projects');
+                const projects = await resp.json();
+                alert(`Active Projects:\n\n${projects.map(p => `• ${p.name}`).join('\n') || 'No projects yet'}`);
+            } catch (error) {
+                showError('Failed to load projects');
+            }
+        }
+
+        async function loadActions() {
+            try {
+                const resp = await fetch('/next-actions');
+                const actions = await resp.json();
+                alert(`Active Next Actions:\n\n${actions.map(a => `• [${a.context}] ${a.description}`).join('\n') || 'No actions yet'}`);
+            } catch (error) {
+                showError('Failed to load actions');
+            }
+        }
+
+        // Load items on page load
+        document.addEventListener('DOMContentLoaded', loadUnprocessedItems);
+    </script>
+</body>
+</html>
