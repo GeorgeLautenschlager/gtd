@@ -43,3 +43,29 @@ class NextAction(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     project = relationship("Project", back_populates="next_actions")
+
+
+class ReviewSession(Base):
+    __tablename__ = "review_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_minutes = Column(Integer, nullable=True)
+    notes = Column(String, nullable=True)
+
+    checklist_items = relationship("ReviewChecklistItem", back_populates="session")
+
+
+class ReviewChecklistItem(Base):
+    __tablename__ = "review_checklist_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_session_id = Column(Integer, ForeignKey("review_sessions.id"), nullable=False)
+    category = Column(String, nullable=False)  # inbox, projects, waiting, someday, clean, goals
+    item_text = Column(String, nullable=False)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(String, nullable=True)
+
+    session = relationship("ReviewSession", back_populates="checklist_items")

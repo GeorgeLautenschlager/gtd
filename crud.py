@@ -194,3 +194,125 @@ def smart_next_actions(db: Session, context: str | None = None, time_available: 
         )
 
     return results
+
+
+### Review session CRUD
+def create_review_session(db: Session) -> models.ReviewSession:
+    # Create session and generate checklist items based on current data
+    session = models.ReviewSession()
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
+    items: list[models.ReviewChecklistItem] = []
+
+    # Inbox
+    inbox_count = db.query(models.InboxItem).filter(models.InboxItem.processed == False).count()
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='inbox', item_text='Inbox zero (process all unprocessed items)'))
+
+    # Projects: one or two checks per active project
+    projects = db.query(models.Project).filter(models.Project.status == 'active').all()
+    for p in projects:
+        items.append(models.ReviewChecklistItem(review_session_id=session.id, category='projects', item_text=f'Review: {p.name} — any new next actions needed?'))
+        items.append(models.ReviewChecklistItem(review_session_id=session.id, category='projects', item_text=f'Review: {p.name} — project still relevant?'))
+
+    # Waiting
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='waiting', item_text='Review waiting-for list — any follow-ups needed?'))
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='waiting', item_text='Check stale waiting items (> 1 week)'))
+
+    # Someday
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='someday', item_text='Review someday/maybe — anything to activate?'))
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='someday', item_text='Prune obsolete ideas'))
+
+    # Clean
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='clean', item_text='Clean up completed items archive'))
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='clean', item_text='Verify next actions are truly next (not dependent)'))
+
+    # Goals
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='goals', item_text='Review calendar (past week) — capture anything missed'))
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='goals', item_text='Review calendar (next 2 weeks) — upcoming deadlines?'))
+    items.append(models.ReviewChecklistItem(review_session_id=session.id, category='goals', item_text='Check against 1-2 year goals — alignment?'))
+
+    db.add_all(items)
+    db.commit()
+    # refresh and return session with items
+    db.refresh(session)
+    return session
+
+
+def get_review_session(db: Session, session_id: int) -> models.ReviewSession | None:
+    return db.query(models.ReviewSession).filter(models.ReviewSession.id == session_id).first()
+
+
+def list_review_checklist(db: Session, session_id: int) -> list[models.ReviewChecklistItem]:
+    return db.query(models.ReviewChecklistItem).filter(models.ReviewChecklistItem.review_session_id == session_id).order_by(models.ReviewChecklistItem.id.asc()).all()
+
+
+def complete_checklist_item(db: Session, session_id: int, item_id: int, notes: str | None = None) -> models.ReviewChecklistItem | None:
+    item = db.query(models.ReviewChecklistItem).filter(models.ReviewChecklistItem.review_session_id == session_id, models.ReviewChecklistItem.id == item_id).first()
+    if item:
+        item.completed = True
+        item.completed_at = datetime.utcnow()
+        if notes:
+            item.notes = notes
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+    return item
+
+
+def complete_review_session(db: Session, session_id: int, notes: str | None = None) -> models.ReviewSession | None:
+    session = db.query(models.ReviewSession).filter(models.ReviewSession.id == session_id).first()
+    if session:
+        session.completed_at = datetime.utcnow()
+        if session.started_at:
+            session.duration_minutes = int((session.completed_at - session.started_at).total_seconds() / 60)
+        if notes:
+            session.notes = notes
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    return session
+
+
+def review_stats(db: Session) -> dict:
+    total = db.query(models.ReviewSession).count()
+    completed_sessions = db.query(models.ReviewSession).filter(models.ReviewSession.completed_at.isnot(None)).all()
+    avg = None
+    if completed_sessions:
+        durations = [s.duration_minutes for s in completed_sessions if s.duration_minutes]
+        if durations:
+            avg = int(sum(durations) / len(durations))
+
+    # streak: consecutive weeks with at least one completed review
+    from datetime import datetime, timedelta
+    last_completed = db.query(models.ReviewSession).filter(models.ReviewSession.completed_at.isnot(None)).order_by(models.ReviewSession.completed_at.desc()).first()
+    last_dt = last_completed.completed_at if last_completed else None
+
+    # compute current streak (simple approach: count backwards week-by-week)
+    streak = 0
+    if last_dt:
+        now = datetime.utcnow()
+        week_start = last_dt - timedelta(days=last_dt.weekday()+1)  # approximate
+        # iterate backwards
+        check_dt = last_dt
+        while True:
+            week_end = check_dt
+            week_start = week_end - timedelta(days=7)
+            found = db.query(models.ReviewSession).filter(models.ReviewSession.completed_at >= week_start, models.ReviewSession.completed_at <= week_end).count()
+            if found:
+                streak += 1
+                check_dt = week_start - timedelta(seconds=1)
+            else:
+                break
+
+    return {
+        'total_sessions': total,
+        'average_duration': avg,
+        'current_streak_weeks': streak,
+        'last_completed': last_dt,
+    }
+
+
+def last_review(db: Session):
+    return db.query(models.ReviewSession).filter(models.ReviewSession.completed_at.isnot(None)).order_by(models.ReviewSession.completed_at.desc()).first()

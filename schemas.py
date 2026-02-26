@@ -95,3 +95,36 @@ class ActionWithProject(NextActionResponse):
 
     class Config:
         orm_mode = True
+
+
+# Review schemas
+class ReviewChecklistItemResponse(BaseModel):
+    id: int
+    category: str
+    item_text: str
+    completed: bool
+    completed_at: datetime | None = None
+    notes: str | None = None
+
+    class Config:
+        orm_mode = True
+
+
+class ReviewSessionStart(BaseModel):
+    id: int
+    started_at: datetime
+    checklist_items: list[ReviewChecklistItemResponse]
+
+    class Config:
+        orm_mode = True
+
+
+class ReviewCompleteRequest(BaseModel):
+    notes: str | None = None
+
+
+class ReviewStats(BaseModel):
+    total_sessions: int
+    average_duration: int | None = None
+    current_streak_weeks: int
+    last_completed: datetime | None = None
