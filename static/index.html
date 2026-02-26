@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GTD Inbox</title>
+</head>
+<body>
+  <h1>GTD Inbox</h1>
+
+  <form id="inbox-form">
+    <textarea id="content" rows="3" cols="40" placeholder="Write something..." required></textarea><br />
+    <button type="submit">Add</button>
+  </form>
+
+  <h2>Unprocessed Items</h2>
+  <ul id="items"></ul>
+
+  <script>
+    async function loadItems() {
+      const res = await fetch("/inbox");
+      const items = await res.json();
+      const list = document.getElementById("items");
+      list.innerHTML = "";
+      items.forEach(i => {
+        const li = document.createElement("li");
+        li.textContent = i.content + " ";
+        const btn = document.createElement("button");
+        btn.textContent = "Process";
+        btn.onclick = async () => {
+          await fetch(`/inbox/${i.id}/process`, { method: "POST" });
+          loadItems();
+        };
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById("inbox-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const content = document.getElementById("content").value;
+      await fetch("/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      document.getElementById("content").value = "";
+      loadItems();
+    };
+
+    loadItems();
+  </script>
+</body>
+</html>
