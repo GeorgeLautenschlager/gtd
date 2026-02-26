@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GTD Dashboard</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:0;padding:16px;background:#f5f7fb}
+    .top{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .card{background:white;border-radius:8px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+    .card.small{min-width:120px}
+    .contexts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+    .ctx-btn.active{background:#667eea;color:white;border-color:#5568d3}
+    .ctx-btn{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .filters{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    .actions{display:grid;grid-template-columns:1fr;gap:10px}
+    .action-card{background:#fff;padding:12px;border-radius:8px;border:1px solid #e6e9ef;display:flex;justify-content:space-between;align-items:center}
+    .meta{font-size:12px;color:#666}
+    .badge{padding:4px 8px;border-radius:999px;background:#eef}
+    @media(min-width:700px){.actions{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <h1>GTD Dashboard</h1>
+  <div class="top">
+    <div class="card small" id="inboxCard">Inbox: <strong id="inboxCount">—</strong></div>
+    <div class="card small">Actions: <strong id="actionCount">—</strong></div>
+    <div class="card small">Stale: <strong id="staleCount">—</strong></div>
+    <div style="flex:1"></div>
+    <div class="card small"><button onclick="location.href='/'">Capture</button></div>
+  </div>
+
+  <div class="card">
+    <div class="contexts" id="contexts"></div>
+    <div class="filters">
+      <label>Time:</label>
+      <button onclick="setTime(5)">5</button>
+      <button onclick="setTime(15)">15</button>
+      <button onclick="setTime(30)">30</button>
+      <button onclick="setTime(60)">60</button>
+      <button onclick="setTime(null)">Any</button>
+      <label style="margin-left:12px">Energy:</label>
+      <select id="energySelect">
+        <option value="">Any</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <label style="margin-left:12px"><input type="checkbox" id="projectOnly"> Project only</label>
+    </div>
+    <div class="actions" id="actionList"></div>
+  </div>
+
+<script>
+let state = {context:null,time:null,energy:null,projectOnly:false};
+async function loadDashboard(){
+  const s = await (await fetch('/api/dashboard')).json();
+  document.getElementById('inboxCount').textContent = s.inbox_count;
+  document.getElementById('actionCount').textContent = s.total_active_actions;
+  document.getElementById('staleCount').textContent = s.stale_actions;
+
+  const ctxs = s.by_context;
+  const container = document.getElementById('contexts');
+  container.innerHTML = '';
+  for(const k of Object.keys(ctxs)){
+    const btn = document.createElement('button');
+    btn.className='ctx-btn';
+    btn.innerHTML = `@${k.replace('_',' ')} <span class="badge">${ctxs[k]}</span>`;
+    btn.dataset.ctx = k;
+    btn.onclick = ()=>{
+      // toggle active
+      const prev = document.querySelector('.ctx-btn.active');
+      if(prev) prev.classList.remove('active');
+      if(state.context === k){ state.context = null; } else { state.context = k; btn.classList.add('active'); }
+      fetchActions();
+    }
+    container.appendChild(btn);
+  }
+}
+
+function setTime(t){ state.time = t; fetchActions(); }
+
+async function fetchActions(){
+  const params = new URLSearchParams();
+  if(state.context) params.set('context', state.context);
+  if(state.time) params.set('time_available', state.time);
+  if(state.energy) params.set('energy', state.energy);
+  if(document.getElementById('projectOnly').checked) params.set('has_project','true');
+  const url = '/api/next-actions/smart?' + params.toString();
+  const resp = await fetch(url);
+  const actions = await resp.json();
+  renderActions(actions);
+}
+
+function renderActions(actions){
+  const list = document.getElementById('actionList');
+  list.innerHTML = '';
+  if(actions.length===0){ list.innerHTML = '<div class="card">No actions match. Try relaxing filters.</div>'; return; }
+  for(const a of actions){
+    const div = document.createElement('div');
+    div.className='action-card';
+    const left = document.createElement('div');
+    // age indicator
+    const created = new Date(a.created_at);
+    const ageDays = Math.floor((Date.now() - created.getTime()) / (1000*60*60*24));
+    const ageColor = ageDays > 7 ? '#ffdddd' : (ageDays >=3 ? '#fff4e5' : '#e8ffef');
+    const energyIcon = a.energy_required === 'high' ? '🔥' : (a.energy_required === 'medium' ? '⚡' : '🌱');
+    left.innerHTML = `<div><strong>${escapeHtml(a.description)}</strong></div><div class="meta"> <span style="background:${ageColor};padding:4px 6px;border-radius:6px;margin-right:8px">${ageDays}d</span> <strong>@${a.context}</strong> • ${a.time_estimate? a.time_estimate+'m':''} ${a.project_name? ' • <em>'+escapeHtml(a.project_name)+'</em>':''} <span style="margin-left:8px">${energyIcon}</span></div>`;
+    const right = document.createElement('div');
+    const done = document.createElement('button'); done.textContent='Done'; done.style.marginRight='8px'; done.onclick=()=>completeAction(a.id,div);
+    const later = document.createElement('button'); later.textContent='Not now'; later.onclick=()=>snooze(div);
+    right.appendChild(done); right.appendChild(later);
+    div.appendChild(left); div.appendChild(right);
+    list.appendChild(div);
+  }
+}
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+async function completeAction(id, el){
+  const resp = await fetch(`/next-actions/${id}/complete`,{method:'POST'});
+  if(resp.ok){ el.remove(); loadDashboard(); }
+  else alert('Failed to complete');
+}
+function snooze(el){ el.style.opacity=0.5; el.parentNode.appendChild(el); }
+
+// wire energy select
+document.getElementById('energySelect').addEventListener('change', (e)=>{ state.energy = e.target.value || null; fetchActions(); });
+
+// project only checkbox
+document.getElementById('projectOnly').addEventListener('change', ()=>{ fetchActions(); });
+
+// initial load
+loadDashboard().then(fetchActions);
+</script>
+</body>
+</html>

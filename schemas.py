@@ -70,3 +70,28 @@ class ClarifyRequest(BaseModel):
     action: str  # next_action, project, trash, reference, someday
     project_data: ProjectCreate | None = None
     next_action_data: NextActionCreate | None = None
+
+
+# Dashboard / Smart filtering models
+class ContextFilter(BaseModel):
+    context: str | None = None
+    time_available: int | None = None
+    energy_level: str | None = None
+    has_project: bool | None = None
+
+
+class DashboardStats(BaseModel):
+    total_active_actions: int
+    by_context: dict[str, int]
+    by_energy: dict[str, int]
+    stale_actions: int
+    inbox_count: int
+    active_projects: int
+
+
+class ActionWithProject(NextActionResponse):
+    project_name: str | None = None
+    project_outcome: str | None = None
+
+    class Config:
+        orm_mode = True

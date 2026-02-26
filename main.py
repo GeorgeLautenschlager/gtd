@@ -9,6 +9,7 @@ import models
 import schemas
 import crud
 from clarify import router as clarify_router
+from dashboard import router as dashboard_router
 from database import SessionLocal, engine
 
 # create tables if they don't exist
@@ -21,6 +22,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # include routers
 app.include_router(clarify_router)
+app.include_router(dashboard_router)
 
 
 def get_db():
@@ -120,4 +122,11 @@ def read_root():
 def read_clarify():
     # clarification UI
     with open("static/clarify.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def read_dashboard():
+    # dashboard UI
+    with open("static/dashboard.html", "r", encoding="utf-8") as f:
         return f.read()
